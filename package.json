@@ -24,11 +24,15 @@
     "node": ">=0.10"
   },
   "dependencies": {
+    "aws-sdk": "^2.708.0",
+    "dotenv": "^8.2.0",
     "glob": "^7.1.6",
     "graceful-fs": "^4.2.4",
     "handlebars": "^4.7.6",
     "object.assign": "^4.1.0",
-    "promise": "^8.1.0"
+    "promise": "^8.1.0",
+    "reload": "^3.1.0",
+    "require-from-string": "^2.0.2"
   },
   "main": "index.js",
   "directories": {

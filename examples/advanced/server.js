@@ -5,11 +5,16 @@ var Promise = global.Promise || require("promise");
 var express = require("express");
 var exphbs = require("../../"); // "express-handlebars"
 var helpers = require("./lib/helpers");
+// var reload = require("reload");
+const AWS = require("aws-sdk");
+var requireFromString = require("require-from-string");
 
 var app = express();
+var dotenv = require("dotenv");
+dotenv.config();
 
 // Create `ExpressHandlebars` instance with a default layout.
-var hbs = exphbs.create({
+var hbsConfig = {
 	helpers: helpers,
 
 	// Uses multiple partials dirs, templates in "shared/templates/" are shared
@@ -18,11 +23,46 @@ var hbs = exphbs.create({
 		"shared/templates/",
 		"views/partials/",
 	],
-});
+	cache: true,
+	aws: {
+		accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+		secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+		region: process.env.AWS_DEFAULT_REGION,
+		signatureVersion: "v4",
+		s3Bucket: process.env.S3_BUCKET,
+		s3Prefix: "express-handlebars/examples/advanced",
+	},
+	viewsDir: "views/",
+};
+
+var hbs = exphbs.create(hbsConfig);
 
 // Register `hbs` as our view engine using its bound `engine()` function.
 app.engine("handlebars", hbs.engine);
 app.set("view engine", "handlebars");
+app.enable("view cache");
+
+app.get("/reload", async function (req, res) {
+	// reload(app).then(reloadReturned => {
+	// 	console.log(reloadReturned);
+	// 	res.redirect("/");
+	// });
+	app.cache = {};
+
+	var s3 = new AWS.S3(hbsConfig.aws.credential);
+	var keyPath = `${hbsConfig.aws.s3Prefix}/helpers/helpers.js`;
+	var helpersString = (await s3.getObject({ Bucket: hbsConfig.aws.s3Bucket, Key: keyPath }).promise()).Body.toString();
+
+	helpers = requireFromString(helpersString);
+	hbsConfig.helpers = Object.assign({}, hbsConfig.helpers, helpers);
+
+	hbs = exphbs.create(hbsConfig);
+	app.engine("handlebars", hbs.engine);
+	app.set("view engine", "handlebars");
+	app.enable("view cache");
+
+	res.redirect("/");
+});
 
 // Middleware to expose the app's shared templates to the client-side of the app
 // for pages which need them.
